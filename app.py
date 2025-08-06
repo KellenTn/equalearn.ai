@@ -340,46 +340,45 @@ Please begin solving:"""
 
 1. Generate exactly 10 calculation/solution problems (short answer questions)
 2. Each problem should be clearly stated and solvable
-3. Use LaTeX format for ALL mathematical expressions, formulas, and equations
+3. Use simple LaTeX format for mathematical expressions
 4. Diversify problem types and difficulty levels
 5. All problems should require step-by-step solutions
 6. Format the response as follows:
 
 **Calculation Problems (10):**
-1. [Question 1 with LaTeX math expressions]
-2. [Question 2 with LaTeX math expressions]
-3. [Question 3 with LaTeX math expressions]
-4. [Question 4 with LaTeX math expressions]
-5. [Question 5 with LaTeX math expressions]
-6. [Question 6 with LaTeX math expressions]
-7. [Question 7 with LaTeX math expressions]
-8. [Question 8 with LaTeX math expressions]
-9. [Question 9 with LaTeX math expressions]
-10. [Question 10 with LaTeX math expressions]
+1. [Question 1 with simple math expressions]
+2. [Question 2 with simple math expressions]
+3. [Question 3 with simple math expressions]
+4. [Question 4 with simple math expressions]
+5. [Question 5 with simple math expressions]
+6. [Question 6 with simple math expressions]
+7. [Question 7 with simple math expressions]
+8. [Question 8 with simple math expressions]
+9. [Question 9 with simple math expressions]
+10. [Question 10 with simple math expressions]
 
 **Answers:**
-1. [Detailed step-by-step solution for Problem 1 with LaTeX math expressions]
-2. [Detailed step-by-step solution for Problem 2 with LaTeX math expressions]
-3. [Detailed step-by-step solution for Problem 3 with LaTeX math expressions]
-4. [Detailed step-by-step solution for Problem 4 with LaTeX math expressions]
-5. [Detailed step-by-step solution for Problem 5 with LaTeX math expressions]
-6. [Detailed step-by-step solution for Problem 6 with LaTeX math expressions]
-7. [Detailed step-by-step solution for Problem 7 with LaTeX math expressions]
-8. [Detailed step-by-step solution for Problem 8 with LaTeX math expressions]
-9. [Detailed step-by-step solution for Problem 9 with LaTeX math expressions]
-10. [Detailed step-by-step solution for Problem 10 with LaTeX math expressions]
+1. [Detailed step-by-step solution for Problem 1]
+2. [Detailed step-by-step solution for Problem 2]
+3. [Detailed step-by-step solution for Problem 3]
+4. [Detailed step-by-step solution for Problem 4]
+5. [Detailed step-by-step solution for Problem 5]
+6. [Detailed step-by-step solution for Problem 6]
+7. [Detailed step-by-step solution for Problem 7]
+8. [Detailed step-by-step solution for Problem 8]
+9. [Detailed step-by-step solution for Problem 9]
+10. [Detailed step-by-step solution for Problem 10]
 
-IMPORTANT: Use LaTeX format for all mathematical expressions. For example:
-- Use $x^2$ for x squared
-- Use $\\frac{a}{b}$ for fractions
-- Use $\\sqrt{x}$ for square roots
-- Use $\\int f(x) dx$ for integrals
-- Use $\\frac{d}{dx}$ for derivatives
-- Use $\\begin{{align}} ... \\end{{align}}$ for multi-line equations
+IMPORTANT: Use simple LaTeX format for mathematical expressions. For example:
+- Use x^2 for x squared
+- Use a/b for fractions
+- Use sqrt(x) for square roots
+- Use int f(x) dx for integrals
+- Use d/dx for derivatives
 
 Original Problem: {text}
 
-Please generate 10 calculation problems with detailed LaTeX solutions:"""
+Please generate 10 calculation problems with detailed solutions:"""
         
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
