@@ -1,6 +1,7 @@
 import os
 import io
 import logging
+import requests
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import pytesseract
@@ -25,9 +26,104 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Create upload directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Ollama API configuration
+OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'gemma:3n')
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def call_ollama_api(text):
+    """
+    Call the local Ollama API to solve math problems using Gemma model
+    """
+    try:
+        # Enhanced prompt to ensure LaTeX output
+        enhanced_prompt = f"""请用LaTeX数学格式回答这道题并逐步推理。请将所有数学表达式用LaTeX格式包围，使用 \\begin{{align}} 和 \\end{{align}} 来包围多行数学表达式。
+
+问题：{text}
+
+请提供详细的解题步骤和最终答案，所有数学符号和公式都要用LaTeX格式。"""
+        
+        response = requests.post(
+            f"{OLLAMA_API_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": enhanced_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,  # Lower temperature for more consistent math output
+                    "top_p": 0.9
+                }
+            },
+            timeout=30  # 30 second timeout
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return {
+                "success": True,
+                "latex": result.get("response", ""),
+                "source": "ollama"
+            }
+        else:
+            logger.error(f"Ollama API error: {response.status_code}")
+            return {"success": False, "error": f"Ollama API returned status {response.status_code}"}
+            
+    except requests.exceptions.Timeout:
+        logger.error("Ollama API timeout")
+        return {"success": False, "error": "Ollama API timeout"}
+    except requests.exceptions.ConnectionError:
+        logger.error("Cannot connect to Ollama API")
+        return {"success": False, "error": "Cannot connect to local Ollama instance"}
+    except Exception as e:
+        logger.error(f"Ollama API error: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+def generate_fallback_solution(text):
+    """
+    Generate a fallback solution when Ollama is not available
+    """
+    # Simulate math problem solving with LaTeX output
+    if "derivative" in text.lower() or "differentiate" in text.lower() or "导数" in text:
+        latex_answer = r"""\begin{align}
+        \text{解题步骤（模拟解答）:} \\
+        \frac{d}{dx}[f(x)] &= \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} \\
+        \text{应用求导法则进行计算} \\
+        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
+        \end{align}"""
+    elif "integral" in text.lower() or "integrate" in text.lower() or "积分" in text:
+        latex_answer = r"""\begin{align}
+        \text{解题步骤（模拟解答）:} \\
+        \int f(x) \, dx &= F(x) + C \\
+        \text{其中 } F'(x) &= f(x) \\
+        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
+        \end{align}"""
+    elif "limit" in text.lower() or "极限" in text:
+        latex_answer = r"""\begin{align}
+        \text{解题步骤（模拟解答）:} \\
+        \lim_{x \to a} f(x) &= L \\
+        \text{应用极限定理和技巧} \\
+        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
+        \end{align}"""
+    else:
+        # Escape special characters in the input text for LaTeX
+        escaped_text = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+        latex_answer = r"""\begin{align}
+        \text{问题分析（模拟解答）:} \\
+        \text{输入: } & \text{""" + escaped_text + r"""} \\
+        \text{解题方法: } & \text{识别数学概念} \\
+        & \text{应用相应方法} \\
+        & \text{验证结果} \\
+        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
+        \end{align}"""
+    
+    return {
+        "success": True,
+        "latex": latex_answer,
+        "source": "fallback"
+    }
 
 @app.route('/')
 def home():
@@ -51,41 +147,29 @@ def solve_text():
         
         logger.info(f"Processing text problem: {text[:100]}...")
         
-        # Simulate math problem solving with LaTeX output
-        if "derivative" in text.lower() or "differentiate" in text.lower():
-            latex_answer = r"""\begin{align}
-            \text{Solution:} \\
-            \frac{d}{dx}[f(x)] &= \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} \\
-            \text{Apply the differentiation rules} \\
-            \end{align}"""
-        elif "integral" in text.lower() or "integrate" in text.lower():
-            latex_answer = r"""\begin{align}
-            \text{Solution:} \\
-            \int f(x) \, dx &= F(x) + C \\
-            \text{where } F'(x) &= f(x)
-            \end{align}"""
-        elif "limit" in text.lower():
-            latex_answer = r"""\begin{align}
-            \text{Solution:} \\
-            \lim_{x \to a} f(x) &= L \\
-            \text{Apply limit laws and techniques}
-            \end{align}"""
-        else:
-            # Escape special characters in the input text for LaTeX
-            escaped_text = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
-            latex_answer = r"""\begin{align}
-            \text{Problem Analysis:} \\
-            \text{Input: } & \text{""" + escaped_text + r"""} \\
-            \text{Solution approach:} & \text{ Identify the mathematical concept} \\
-            & \text{ Apply appropriate methods} \\
-            & \text{ Verify the result}
-            \end{align}"""
+        # Try to use Ollama API first
+        ollama_result = call_ollama_api(text)
         
-        return jsonify({
-            "success": True,
-            "latex": latex_answer,
-            "original_text": text
-        })
+        if ollama_result["success"]:
+            logger.info("Successfully solved using Ollama API")
+            return jsonify({
+                "success": True,
+                "latex": ollama_result["latex"],
+                "original_text": text,
+                "source": "ollama",
+                "message": "解答由本地 Ollama + Gemma 模型生成"
+            })
+        else:
+            logger.warning(f"Ollama API failed: {ollama_result.get('error')}, using fallback")
+            fallback_result = generate_fallback_solution(text)
+            return jsonify({
+                "success": True,
+                "latex": fallback_result["latex"],
+                "original_text": text,
+                "source": "fallback",
+                "message": f"使用模拟解答（Ollama 不可用: {ollama_result.get('error', '未知错误')}）",
+                "ollama_error": ollama_result.get('error')
+            })
         
     except Exception as e:
         logger.error(f"Error processing text: {str(e)}")
@@ -174,6 +258,53 @@ def solve_image():
             "success": False,
             "error": "An unexpected error occurred while processing the image"
         }), 500
+
+@app.route('/test_ollama_connection', methods=['POST'])
+def test_ollama_connection():
+    """Test connection to Ollama API"""
+    try:
+        data = request.get_json()
+        ollama_url = data.get('ollama_url', 'http://localhost:11434')
+        
+        # Test connection to Ollama
+        response = requests.get(f"{ollama_url}/api/tags", timeout=10)
+        
+        if response.status_code == 200:
+            models_data = response.json()
+            models = [model.get('name', 'unknown') for model in models_data.get('models', [])]
+            
+            if 'gemma:3n' in models:
+                return jsonify({
+                    "success": True,
+                    "message": "Connected successfully and Gemma 3n model is available",
+                    "models": models
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": f"Connected but Gemma 3n model not found. Available models: {', '.join(models) if models else 'None'}"
+                })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Ollama API returned status {response.status_code}"
+            })
+            
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "Connection timeout - Ollama may not be running"
+        })
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "Cannot connect to Ollama - check if it's running and accessible"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
 
 @app.route('/health')
 def health_check():

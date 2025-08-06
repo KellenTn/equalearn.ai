@@ -19,11 +19,14 @@ const extractedContent = document.getElementById("extractedContent");
 const latexSolution = document.getElementById("latexSolution");
 const mathOutput = document.getElementById("mathOutput");
 const errorMessage = document.getElementById("errorMessage");
+const solutionSource = document.getElementById("solutionSource");
+const sourceMessage = document.getElementById("sourceMessage");
 
 // Buttons
 const solveTextBtn = document.getElementById("solveTextBtn");
 const extractTextBtn = document.getElementById("extractTextBtn");
 const solveExtractedBtn = document.getElementById("solveExtractedBtn");
+const testConnectionBtn = document.getElementById("testConnectionBtn");
 
 // Utility functions
 function showState(state) {
@@ -52,6 +55,7 @@ function resetResults() {
     originalProblem.style.display = "none";
     extractedText.style.display = "none";
     latexSolution.style.display = "none";
+    solutionSource.style.display = "none";
 }
 
 function setButtonLoading(button, isLoading) {
@@ -122,6 +126,20 @@ textForm.addEventListener("submit", async (e) => {
             // Show original problem
             problemText.textContent = data.original_text;
             originalProblem.style.display = "block";
+            
+            // Show solution source info
+            if (data.message) {
+                sourceMessage.textContent = data.message;
+                solutionSource.style.display = "block";
+                
+                // Change alert class based on source
+                const sourceInfo = document.getElementById("sourceInfo");
+                if (data.source === "ollama") {
+                    sourceInfo.className = "alert alert-success mb-2";
+                } else {
+                    sourceInfo.className = "alert alert-warning mb-2";
+                }
+            }
             
             // Show LaTeX solution
             mathOutput.innerHTML = data.latex;
@@ -240,6 +258,20 @@ solveExtractedBtn.addEventListener("click", async () => {
         }
         
         if (data.success) {
+            // Show solution source info
+            if (data.message) {
+                sourceMessage.textContent = data.message;
+                solutionSource.style.display = "block";
+                
+                // Change alert class based on source
+                const sourceInfo = document.getElementById("sourceInfo");
+                if (data.source === "ollama") {
+                    sourceInfo.className = "alert alert-success mb-2";
+                } else {
+                    sourceInfo.className = "alert alert-warning mb-2";
+                }
+            }
+            
             // Show LaTeX solution
             mathOutput.innerHTML = data.latex;
             renderMath(mathOutput);
@@ -254,6 +286,41 @@ solveExtractedBtn.addEventListener("click", async () => {
         showError(error.message || "An error occurred while solving the problem.");
     } finally {
         setButtonLoading(solveExtractedBtn, false);
+    }
+});
+
+// Test Ollama connection
+testConnectionBtn.addEventListener("click", async () => {
+    const ollamaUrl = document.getElementById("ollamaUrl").value || "http://localhost:11434";
+    const connectionStatus = document.getElementById("connectionStatus");
+    
+    setButtonLoading(testConnectionBtn, true);
+    
+    try {
+        const response = await fetch("/test_ollama_connection", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ollama_url: ollamaUrl })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            connectionStatus.innerHTML = '<span class="text-success"><i data-feather="check-circle"></i> 连接成功</span>';
+        } else {
+            connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 连接失败: ${data.error}</span>`;
+        }
+        
+        // Re-render feather icons
+        feather.replace();
+        
+    } catch (error) {
+        connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 连接错误: ${error.message}</span>`;
+        feather.replace();
+    } finally {
+        setButtonLoading(testConnectionBtn, false);
     }
 });
 
