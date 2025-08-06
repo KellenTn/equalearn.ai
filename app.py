@@ -213,11 +213,11 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         story.append(Spacer(1, 20))
         
         # Instructions
-        story.append(Paragraph("<b>Instructions:</b> Answer all 20 questions. For multiple choice, circle the correct answer. For true/false, write T or F. For calculation problems, show your work.", problem_style))
+        story.append(Paragraph("<b>Instructions:</b> Answer all 10 questions. For multiple choice, circle the correct answer. For true/false, write T or F. For calculation problems, show your work.", problem_style))
         story.append(Spacer(1, 30))
         
         # Multiple Choice Questions
-        story.append(Paragraph("<b>Multiple Choice Questions (10 points each):</b>", problem_style))
+        story.append(Paragraph("<b>Multiple Choice Questions (5 points each):</b>", problem_style))
         story.append(Spacer(1, 15))
         
         for i, (problem, options) in enumerate(zip(multiple_choice, multiple_choice_options), 1):
@@ -235,7 +235,7 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         story.append(Paragraph("<b>True/False Questions (5 points each):</b>", problem_style))
         story.append(Spacer(1, 15))
         
-        for i, problem in enumerate(true_false, 11):
+        for i, problem in enumerate(true_false, 6):
             # Problem number and content
             story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
             story.append(Paragraph("Answer: T / F", answer_space_style))
@@ -245,7 +245,7 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         story.append(Paragraph("<b>Calculation Problems (10 points each):</b>", problem_style))
         story.append(Spacer(1, 15))
         
-        for i, problem in enumerate(calculation, 16):
+        for i, problem in enumerate(calculation, 9):
             # Problem number and content
             story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
             
@@ -266,23 +266,23 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         
         # Multiple choice answers
         story.append(Paragraph("<b>Multiple Choice Answers:</b>", solution_style))
-        for i in range(10):
+        for i in range(5):
             if i < len(answers):
                 story.append(Paragraph(f"<b>{i+1}.</b> {answers[i]}", solution_style))
         story.append(Spacer(1, 15))
         
         # True/False answers
         story.append(Paragraph("<b>True/False Answers:</b>", solution_style))
-        for i in range(5):
-            if i+10 < len(answers):
-                story.append(Paragraph(f"<b>{i+11}.</b> {answers[i+10]}", solution_style))
+        for i in range(3):
+            if i+5 < len(answers):
+                story.append(Paragraph(f"<b>{i+6}.</b> {answers[i+5]}", solution_style))
         story.append(Spacer(1, 15))
         
         # Calculation answers
         story.append(Paragraph("<b>Calculation Problem Solutions:</b>", solution_style))
-        for i in range(5):
-            if i+15 < len(answers):
-                story.append(Paragraph(f"<b>{i+16}.</b> {answers[i+15]}", solution_style))
+        for i in range(2):
+            if i+8 < len(answers):
+                story.append(Paragraph(f"<b>{i+9}.</b> {answers[i+8]}", solution_style))
                 story.append(Spacer(1, 10))
         
         # Build PDF
@@ -417,10 +417,10 @@ Please begin solving:"""
         else:  # practice mode
             enhanced_prompt = f"""Based on this math problem, generate a comprehensive practice worksheet with the following requirements:
 
-1. Generate exactly 20 problems total:
-   - 10 multiple choice questions (A, B, C, D options with one correct answer)
-   - 5 true/false questions
-   - 5 calculation/solution problems
+1. Generate exactly 10 problems total:
+   - 5 multiple choice questions (A, B, C, D options with one correct answer)
+   - 3 true/false questions
+   - 2 calculation/solution problems
 
 2. Each problem should be clearly stated and solvable
 3. Use LaTeX format for mathematical formulas where appropriate
@@ -428,7 +428,7 @@ Please begin solving:"""
 5. For multiple choice questions, provide 4 options (A, B, C, D) with exactly one correct answer
 6. Format the response as follows:
 
-**Multiple Choice Questions (10):**
+**Multiple Choice Questions (5):**
 1. [Question 1]
    A) [Option A - incorrect]
    B) [Option B - correct]
@@ -441,45 +441,35 @@ Please begin solving:"""
    C) [Option C - incorrect]
    D) [Option D - incorrect]
 ...
+5. [Question 5]
+   A) [Option A - incorrect]
+   B) [Option B - incorrect]
+   C) [Option C - correct]
+   D) [Option D - incorrect]
+
+**True/False Questions (3):**
+6. [Question 6]
+7. [Question 7]
+8. [Question 8]
+
+**Calculation Problems (2):**
+9. [Question 9]
 10. [Question 10]
-    A) [Option A - incorrect]
-    B) [Option B - incorrect]
-    C) [Option C - correct]
-    D) [Option D - incorrect]
-
-**True/False Questions (5):**
-11. [Question 11]
-12. [Question 12]
-13. [Question 13]
-14. [Question 14]
-15. [Question 15]
-
-**Calculation Problems (5):**
-16. [Question 16]
-17. [Question 17]
-18. [Question 18]
-19. [Question 19]
-20. [Question 20]
 
 **Answers:**
 1. [Correct answer: A/B/C/D]
 2. [Correct answer: A/B/C/D]
 ...
-10. [Correct answer: A/B/C/D]
-11. [True/False]
-12. [True/False]
-13. [True/False]
-14. [True/False]
-15. [True/False]
-16. [Detailed solution for Problem 16]
-17. [Detailed solution for Problem 17]
-18. [Detailed solution for Problem 18]
-19. [Detailed solution for Problem 19]
-20. [Detailed solution for Problem 20]
+5. [Correct answer: A/B/C/D]
+6. [True/False]
+7. [True/False]
+8. [True/False]
+9. [Detailed solution for Problem 9]
+10. [Detailed solution for Problem 10]
 
 Original Problem: {text}
 
-Please generate 20 practice problems with answers:"""
+Please generate 10 practice problems with answers:"""
         
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
