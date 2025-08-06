@@ -60,9 +60,6 @@ def allowed_file(filename):
 def parse_practice_problems_and_solutions(ai_response):
     """Parse AI response to extract practice problems and solutions"""
     try:
-        multiple_choice = []
-        multiple_choice_options = []
-        true_false = []
         calculation = []
         answers = []
         
@@ -70,27 +67,13 @@ def parse_practice_problems_and_solutions(ai_response):
         sections = ai_response.split('**')
         
         current_section = ""
-        current_problem = ""
-        current_options = []
         
         for section in sections:
             section = section.strip()
-            if "Multiple Choice Questions" in section:
-                current_section = "multiple_choice"
-                current_problem = ""
-                current_options = []
-            elif "True/False Questions" in section:
-                current_section = "true_false"
-                current_problem = ""
-                current_options = []
-            elif "Calculation Problems" in section:
+            if "Calculation Problems" in section:
                 current_section = "calculation"
-                current_problem = ""
-                current_options = []
             elif "Answers:" in section:
                 current_section = "answers"
-                current_problem = ""
-                current_options = []
             elif current_section and section:
                 # Parse problems based on current section
                 lines = section.split('\n')
@@ -103,53 +86,27 @@ def parse_practice_problems_and_solutions(ai_response):
                             problem_num = int(parts[0])
                             problem_content = parts[1].strip()
                             
-                            if current_section == "multiple_choice" and problem_num <= 10:
-                                # Save previous problem if exists
-                                if current_problem:
-                                    multiple_choice.append(current_problem)
-                                    multiple_choice_options.append(current_options)
-                                current_problem = problem_content
-                                current_options = []
-                            elif current_section == "true_false" and 11 <= problem_num <= 15:
-                                true_false.append(problem_content)
-                            elif current_section == "calculation" and 16 <= problem_num <= 20:
+                            if current_section == "calculation" and 1 <= problem_num <= 10:
                                 calculation.append(problem_content)
-                            elif current_section == "answers" and 1 <= problem_num <= 20:
+                            elif current_section == "answers" and 1 <= problem_num <= 10:
                                 answers.append(problem_content)
-                    elif line.startswith('A)') or line.startswith('B)') or line.startswith('C)') or line.startswith('D)'):
-                        if current_section == "multiple_choice":
-                            current_options.append(line)
-        
-        # Save the last multiple choice problem
-        if current_problem and current_section == "multiple_choice":
-            multiple_choice.append(current_problem)
-            multiple_choice_options.append(current_options)
         
         # Ensure we have the right number of problems
-        if len(multiple_choice) < 10:
-            multiple_choice.extend([f"Multiple choice question {i+1}" for i in range(len(multiple_choice), 10)])
-        if len(multiple_choice_options) < 10:
-            multiple_choice_options.extend([["A) Option A", "B) Option B", "C) Option C", "D) Option D"] for i in range(len(multiple_choice_options), 10)])
-        if len(true_false) < 5:
-            true_false.extend([f"True/False question {i+1}" for i in range(len(true_false), 5)])
-        if len(calculation) < 5:
-            calculation.extend([f"Calculation problem {i+1}" for i in range(len(calculation), 5)])
-        if len(answers) < 20:
-            answers.extend([f"Answer {i+1}" for i in range(len(answers), 20)])
+        if len(calculation) < 10:
+            calculation.extend([f"Calculation problem {i+1}" for i in range(len(calculation), 10)])
+        if len(answers) < 10:
+            answers.extend([f"Solution for problem {i+1}" for i in range(len(answers), 10)])
         
-        return multiple_choice[:10], multiple_choice_options[:10], true_false[:5], calculation[:5], answers[:20]
+        return calculation[:10], answers[:10]
         
     except Exception as e:
         logger.error(f"Error parsing practice problems: {e}")
         # Return fallback problems and solutions
-        multiple_choice = [f"Multiple choice question {i+1}" for i in range(10)]
-        multiple_choice_options = [["A) Option A", "B) Option B", "C) Option C", "D) Option D"] for i in range(10)]
-        true_false = [f"True/False question {i+1}" for i in range(5)]
-        calculation = [f"Calculation problem {i+1}" for i in range(5)]
-        answers = [f"Answer {i+1}" for i in range(20)]
-        return multiple_choice, multiple_choice_options, true_false, calculation, answers
+        calculation = [f"Calculation problem {i+1}" for i in range(10)]
+        answers = [f"Solution for problem {i+1}" for i in range(10)]
+        return calculation, answers
 
-def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_options, true_false, calculation, answers):
+def generate_practice_pdf(original_problem, calculation, answers):
     """Generate a PDF worksheet with practice problems and solutions"""
     try:
         # Create filename with timestamp
@@ -213,39 +170,14 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         story.append(Spacer(1, 20))
         
         # Instructions
-        story.append(Paragraph("<b>Instructions:</b> Answer all 10 questions. For multiple choice, circle the correct answer. For true/false, write T or F. For calculation problems, show your work.", problem_style))
+        story.append(Paragraph("<b>Instructions:</b> Answer all 10 calculation problems. Show your work and provide step-by-step solutions.", problem_style))
         story.append(Spacer(1, 30))
-        
-        # Multiple Choice Questions
-        story.append(Paragraph("<b>Multiple Choice Questions (5 points each):</b>", problem_style))
-        story.append(Spacer(1, 15))
-        
-        for i, (problem, options) in enumerate(zip(multiple_choice, multiple_choice_options), 1):
-            # Problem number and content
-            story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
-            
-            # Multiple choice options
-            for option in options:
-                story.append(Paragraph(option, answer_space_style))
-            story.append(Paragraph("Answer: ( )", answer_space_style))
-            
-            story.append(Spacer(1, 15))
-        
-        # True/False Questions
-        story.append(Paragraph("<b>True/False Questions (5 points each):</b>", problem_style))
-        story.append(Spacer(1, 15))
-        
-        for i, problem in enumerate(true_false, 6):
-            # Problem number and content
-            story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
-            story.append(Paragraph("Answer: T / F", answer_space_style))
-            story.append(Spacer(1, 10))
         
         # Calculation Problems
         story.append(Paragraph("<b>Calculation Problems (10 points each):</b>", problem_style))
         story.append(Spacer(1, 15))
         
-        for i, problem in enumerate(calculation, 9):
+        for i, problem in enumerate(calculation, 1):
             # Problem number and content
             story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
             
@@ -264,25 +196,11 @@ def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_opt
         story.append(Paragraph("Answers", title_style))
         story.append(Spacer(1, 20))
         
-        # Multiple choice answers
-        story.append(Paragraph("<b>Multiple Choice Answers:</b>", solution_style))
-        for i in range(5):
+        # Calculation answers
+        story.append(Paragraph("<b>Problem Solutions:</b>", solution_style))
+        for i in range(10):
             if i < len(answers):
                 story.append(Paragraph(f"<b>{i+1}.</b> {answers[i]}", solution_style))
-        story.append(Spacer(1, 15))
-        
-        # True/False answers
-        story.append(Paragraph("<b>True/False Answers:</b>", solution_style))
-        for i in range(3):
-            if i+5 < len(answers):
-                story.append(Paragraph(f"<b>{i+6}.</b> {answers[i+5]}", solution_style))
-        story.append(Spacer(1, 15))
-        
-        # Calculation answers
-        story.append(Paragraph("<b>Calculation Problem Solutions:</b>", solution_style))
-        for i in range(2):
-            if i+8 < len(answers):
-                story.append(Paragraph(f"<b>{i+9}.</b> {answers[i+8]}", solution_style))
                 story.append(Spacer(1, 10))
         
         # Build PDF
@@ -417,59 +335,40 @@ Please begin solving:"""
         else:  # practice mode
             enhanced_prompt = f"""Based on this math problem, generate a comprehensive practice worksheet with the following requirements:
 
-1. Generate exactly 10 problems total:
-   - 5 multiple choice questions (A, B, C, D options with one correct answer)
-   - 3 true/false questions
-   - 2 calculation/solution problems
-
+1. Generate exactly 10 calculation/solution problems (short answer questions)
 2. Each problem should be clearly stated and solvable
 3. Use LaTeX format for mathematical formulas where appropriate
 4. Diversify problem types and difficulty levels
-5. For multiple choice questions, provide 4 options (A, B, C, D) with exactly one correct answer
+5. All problems should require step-by-step solutions
 6. Format the response as follows:
 
-**Multiple Choice Questions (5):**
+**Calculation Problems (10):**
 1. [Question 1]
-   A) [Option A - incorrect]
-   B) [Option B - correct]
-   C) [Option C - incorrect]
-   D) [Option D - incorrect]
-
 2. [Question 2]
-   A) [Option A - correct]
-   B) [Option B - incorrect]
-   C) [Option C - incorrect]
-   D) [Option D - incorrect]
-...
+3. [Question 3]
+4. [Question 4]
 5. [Question 5]
-   A) [Option A - incorrect]
-   B) [Option B - incorrect]
-   C) [Option C - correct]
-   D) [Option D - incorrect]
-
-**True/False Questions (3):**
 6. [Question 6]
 7. [Question 7]
 8. [Question 8]
-
-**Calculation Problems (2):**
 9. [Question 9]
 10. [Question 10]
 
 **Answers:**
-1. [Correct answer: A/B/C/D]
-2. [Correct answer: A/B/C/D]
-...
-5. [Correct answer: A/B/C/D]
-6. [True/False]
-7. [True/False]
-8. [True/False]
+1. [Detailed solution for Problem 1]
+2. [Detailed solution for Problem 2]
+3. [Detailed solution for Problem 3]
+4. [Detailed solution for Problem 4]
+5. [Detailed solution for Problem 5]
+6. [Detailed solution for Problem 6]
+7. [Detailed solution for Problem 7]
+8. [Detailed solution for Problem 8]
 9. [Detailed solution for Problem 9]
 10. [Detailed solution for Problem 10]
 
 Original Problem: {text}
 
-Please generate 10 practice problems with answers:"""
+Please generate 10 calculation problems with detailed solutions:"""
         
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
@@ -608,10 +507,10 @@ def generate_practice():
             logger.info("Successfully generated practice problems using local Ollama + Gemma 3n")
             
             # Parse the AI response to extract problems and solutions
-            multiple_choice, multiple_choice_options, true_false, calculation, answers = parse_practice_problems_and_solutions(ollama_result["latex"])
+            calculation, answers = parse_practice_problems_and_solutions(ollama_result["latex"])
             
             # Generate PDF
-            pdf_filename = generate_practice_pdf(text, multiple_choice, multiple_choice_options, true_false, calculation, answers)
+            pdf_filename = generate_practice_pdf(text, calculation, answers)
             
             if pdf_filename:
                 return jsonify({
@@ -620,8 +519,6 @@ def generate_practice():
                     "original_text": text,
                     "source": "ollama",
                     "message": "Practice worksheet PDF generated successfully",
-                    "multiple_choice": multiple_choice,
-                    "true_false": true_false,
                     "calculation": calculation,
                     "answers": answers
                 })

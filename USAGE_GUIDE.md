@@ -63,7 +63,7 @@ brew install tesseract ffmpeg
 3. **使用步骤：**
    - 输入数学问题（如：Find the derivative of x^2）
    - 点击"Solve Problem"获得解答
-   - 点击"Generate 10-Question PDF"生成练习册
+   - 点击"Generate 10 Calculation Problems"生成计算题练习册
 
 ## 💡 使用技巧
 
