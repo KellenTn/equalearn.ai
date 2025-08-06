@@ -1,0 +1,122 @@
+/* Custom styles for Solvely Lite */
+
+/* Ensure proper spacing and alignment */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid var(--bs-border-color);
+}
+
+.card-header {
+    background-color: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Form styling */
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Math output styling */
+#mathOutput {
+    min-height: 100px;
+    overflow-x: auto;
+    font-size: 1.1em;
+    line-height: 1.6;
+}
+
+/* Image preview styling */
+#imagePreview {
+    text-align: center;
+}
+
+#previewImg {
+    border: 2px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+}
+
+/* Loading state */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Button states */
+.btn:disabled {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* KaTeX error handling */
+.katex-error {
+    color: var(--bs-danger);
+    background-color: transparent;
+}
+
+/* Enhanced math display */
+.katex-display {
+    margin: 1em 0;
+    text-align: center;
+}
+
+/* Success animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#successState {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Error state styling */
+#errorState {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Feature icons styling */
+.text-success { color: var(--bs-success) !important; }
+.text-info { color: var(--bs-info) !important; }
+.text-warning { color: var(--bs-warning) !important; }
+
+/* Ensure proper contrast for extracted text display */
+.bg-secondary.bg-opacity-25 {
+    background-color: rgba(var(--bs-secondary-rgb), 0.25) !important;
+}
+
+.bg-dark.bg-opacity-25 {
+    background-color: rgba(var(--bs-dark-rgb), 0.25) !important;
+}
+
+/* File input styling */
+.form-control[type="file"] {
+    padding: 0.375rem 0.75rem;
+}
+
+/* Empty state styling */
+#emptyState {
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#emptyState .text-muted {
+    color: var(--bs-secondary) !important;
+}
