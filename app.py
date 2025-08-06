@@ -2,10 +2,28 @@ import os
 import io
 import logging
 import requests
+import json
+import base64
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import pytesseract
 from PIL import Image
+import cv2
+import numpy as np
+import tempfile
+import wave
+import audioop
+from pydub import AudioSegment
+import speech_recognition as sr
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -17,8 +35,8 @@ app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'webm'}
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'webm', 'wav', 'mp3', 'm4a', 'ogg'}
+MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32MB max file size
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -26,33 +44,442 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Create upload directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Create PDF output directory
+PDF_OUTPUT_FOLDER = 'pdf_output'
+os.makedirs(PDF_OUTPUT_FOLDER, exist_ok=True)
+
 # Ollama API configuration - Only local instance supported
 OLLAMA_API_URL = 'http://localhost:11434'  # Fixed to localhost only
-OLLAMA_MODEL = 'gemma:3n'  # Fixed to Gemma 3n model
+OLLAMA_MODEL = 'gemma3:4b'  # Fixed to Gemma 3 4B model
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def call_ollama_api(text):
+def parse_practice_problems_and_solutions(ai_response):
+    """Parse AI response to extract practice problems and solutions"""
+    try:
+        multiple_choice = []
+        multiple_choice_options = []
+        true_false = []
+        calculation = []
+        answers = []
+        
+        # Split the response into sections
+        sections = ai_response.split('**')
+        
+        current_section = ""
+        current_problem = ""
+        current_options = []
+        
+        for section in sections:
+            section = section.strip()
+            if "Multiple Choice Questions" in section:
+                current_section = "multiple_choice"
+                current_problem = ""
+                current_options = []
+            elif "True/False Questions" in section:
+                current_section = "true_false"
+                current_problem = ""
+                current_options = []
+            elif "Calculation Problems" in section:
+                current_section = "calculation"
+                current_problem = ""
+                current_options = []
+            elif "Answers:" in section:
+                current_section = "answers"
+                current_problem = ""
+                current_options = []
+            elif current_section and section:
+                # Parse problems based on current section
+                lines = section.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line and line[0].isdigit():
+                        # Extract problem number and content
+                        parts = line.split('.', 1)
+                        if len(parts) > 1:
+                            problem_num = int(parts[0])
+                            problem_content = parts[1].strip()
+                            
+                            if current_section == "multiple_choice" and problem_num <= 10:
+                                # Save previous problem if exists
+                                if current_problem:
+                                    multiple_choice.append(current_problem)
+                                    multiple_choice_options.append(current_options)
+                                current_problem = problem_content
+                                current_options = []
+                            elif current_section == "true_false" and 11 <= problem_num <= 15:
+                                true_false.append(problem_content)
+                            elif current_section == "calculation" and 16 <= problem_num <= 20:
+                                calculation.append(problem_content)
+                            elif current_section == "answers" and 1 <= problem_num <= 20:
+                                answers.append(problem_content)
+                    elif line.startswith('A)') or line.startswith('B)') or line.startswith('C)') or line.startswith('D)'):
+                        if current_section == "multiple_choice":
+                            current_options.append(line)
+        
+        # Save the last multiple choice problem
+        if current_problem and current_section == "multiple_choice":
+            multiple_choice.append(current_problem)
+            multiple_choice_options.append(current_options)
+        
+        # Ensure we have the right number of problems
+        if len(multiple_choice) < 10:
+            multiple_choice.extend([f"Multiple choice question {i+1}" for i in range(len(multiple_choice), 10)])
+        if len(multiple_choice_options) < 10:
+            multiple_choice_options.extend([["A) Option A", "B) Option B", "C) Option C", "D) Option D"] for i in range(len(multiple_choice_options), 10)])
+        if len(true_false) < 5:
+            true_false.extend([f"True/False question {i+1}" for i in range(len(true_false), 5)])
+        if len(calculation) < 5:
+            calculation.extend([f"Calculation problem {i+1}" for i in range(len(calculation), 5)])
+        if len(answers) < 20:
+            answers.extend([f"Answer {i+1}" for i in range(len(answers), 20)])
+        
+        return multiple_choice[:10], multiple_choice_options[:10], true_false[:5], calculation[:5], answers[:20]
+        
+    except Exception as e:
+        logger.error(f"Error parsing practice problems: {e}")
+        # Return fallback problems and solutions
+        multiple_choice = [f"Multiple choice question {i+1}" for i in range(10)]
+        multiple_choice_options = [["A) Option A", "B) Option B", "C) Option C", "D) Option D"] for i in range(10)]
+        true_false = [f"True/False question {i+1}" for i in range(5)]
+        calculation = [f"Calculation problem {i+1}" for i in range(5)]
+        answers = [f"Answer {i+1}" for i in range(20)]
+        return multiple_choice, multiple_choice_options, true_false, calculation, answers
+
+def generate_practice_pdf(original_problem, multiple_choice, multiple_choice_options, true_false, calculation, answers):
+    """Generate a PDF worksheet with practice problems and solutions"""
+    try:
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"practice_worksheet_{timestamp}.pdf"
+        filepath = os.path.join(PDF_OUTPUT_FOLDER, filename)
+        
+        # Create PDF document
+        doc = SimpleDocTemplate(filepath, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        
+        # Create custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        
+        problem_style = ParagraphStyle(
+            'ProblemStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            spaceBefore=10,
+            leftIndent=20
+        )
+        
+        answer_space_style = ParagraphStyle(
+            'AnswerSpace',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=30,
+            spaceBefore=10,
+            leftIndent=40
+        )
+        
+        solution_style = ParagraphStyle(
+            'SolutionStyle',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=15,
+            spaceBefore=10,
+            leftIndent=20,
+            textColor=colors.darkgreen
+        )
+        
+        # Build PDF content
+        story = []
+        
+        # Title
+        story.append(Paragraph("Mathematics Practice Worksheet", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Original problem reference
+        story.append(Paragraph(f"<b>Based on:</b> {original_problem}", problem_style))
+        story.append(Spacer(1, 20))
+        
+        # Instructions
+        story.append(Paragraph("<b>Instructions:</b> Answer all 20 questions. For multiple choice, circle the correct answer. For true/false, write T or F. For calculation problems, show your work.", problem_style))
+        story.append(Spacer(1, 30))
+        
+        # Multiple Choice Questions
+        story.append(Paragraph("<b>Multiple Choice Questions (10 points each):</b>", problem_style))
+        story.append(Spacer(1, 15))
+        
+        for i, (problem, options) in enumerate(zip(multiple_choice, multiple_choice_options), 1):
+            # Problem number and content
+            story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
+            
+            # Multiple choice options
+            for option in options:
+                story.append(Paragraph(option, answer_space_style))
+            story.append(Paragraph("Answer: ( )", answer_space_style))
+            
+            story.append(Spacer(1, 15))
+        
+        # True/False Questions
+        story.append(Paragraph("<b>True/False Questions (5 points each):</b>", problem_style))
+        story.append(Spacer(1, 15))
+        
+        for i, problem in enumerate(true_false, 11):
+            # Problem number and content
+            story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
+            story.append(Paragraph("Answer: T / F", answer_space_style))
+            story.append(Spacer(1, 10))
+        
+        # Calculation Problems
+        story.append(Paragraph("<b>Calculation Problems (10 points each):</b>", problem_style))
+        story.append(Spacer(1, 15))
+        
+        for i, problem in enumerate(calculation, 16):
+            # Problem number and content
+            story.append(Paragraph(f"<b>{i}.</b> {problem}", problem_style))
+            
+            # Answer space - just blank lines
+            story.append(Paragraph("_________________________________", answer_space_style))
+            story.append(Paragraph("_________________________________", answer_space_style))
+            story.append(Paragraph("_________________________________", answer_space_style))
+            story.append(Paragraph("_________________________________", answer_space_style))
+            
+            story.append(Spacer(1, 15))
+        
+        # Page break before answers
+        story.append(PageBreak())
+        
+        # Answers section
+        story.append(Paragraph("Answers", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Multiple choice answers
+        story.append(Paragraph("<b>Multiple Choice Answers:</b>", solution_style))
+        for i in range(10):
+            if i < len(answers):
+                story.append(Paragraph(f"<b>{i+1}.</b> {answers[i]}", solution_style))
+        story.append(Spacer(1, 15))
+        
+        # True/False answers
+        story.append(Paragraph("<b>True/False Answers:</b>", solution_style))
+        for i in range(5):
+            if i+10 < len(answers):
+                story.append(Paragraph(f"<b>{i+11}.</b> {answers[i+10]}", solution_style))
+        story.append(Spacer(1, 15))
+        
+        # Calculation answers
+        story.append(Paragraph("<b>Calculation Problem Solutions:</b>", solution_style))
+        for i in range(5):
+            if i+15 < len(answers):
+                story.append(Paragraph(f"<b>{i+16}.</b> {answers[i+15]}", solution_style))
+                story.append(Spacer(1, 10))
+        
+        # Build PDF
+        doc.build(story)
+        
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Error generating PDF: {e}")
+        return None
+
+def extract_text_from_video(video_path):
+    """Extract text from video frames using OCR"""
+    try:
+        # Check if tesseract is available
+        try:
+            import subprocess
+            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "ERROR: Tesseract OCR is not installed. Please install tesseract to enable video text extraction."
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return "ERROR: Could not open video file."
+        
+        extracted_texts = []
+        
+        # Extract frames at regular intervals
+        frame_count = 0
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            # Process every 30th frame (assuming 30fps, so every second)
+            if frame_count % 30 == 0:
+                # Convert BGR to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(rgb_frame)
+                
+                # Extract text from frame
+                try:
+                    text = pytesseract.image_to_string(pil_image, lang='eng')
+                    if text.strip():
+                        extracted_texts.append(text.strip())
+                except Exception as e:
+                    logger.warning(f"OCR failed on frame {frame_count}: {e}")
+            
+            frame_count += 1
+            
+            # Limit to first 10 seconds to avoid long processing
+            if frame_count > 300:  # 10 seconds at 30fps
+                break
+        
+        cap.release()
+        
+        # Combine all extracted text
+        combined_text = ' '.join(extracted_texts)
+        if not combined_text.strip():
+            return "No text found in video frames. Please ensure the video contains clear, readable text."
+        return combined_text.strip()
+        
+    except Exception as e:
+        logger.error(f"Error extracting text from video: {e}")
+        return f"ERROR: Failed to process video: {str(e)}"
+
+def process_audio_file(audio_file):
+    """Convert audio file to text using speech recognition"""
+    try:
+        # Check if ffmpeg is available for audio conversion
+        try:
+            import subprocess
+            subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "ERROR: FFmpeg is not installed. Please install ffmpeg to enable audio processing."
+        
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            audio_file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Convert to WAV if needed
+            audio = AudioSegment.from_file(temp_path)
+            wav_path = temp_path.replace('.wav', '_converted.wav')
+            audio.export(wav_path, format='wav')
+            
+            # Use speech recognition
+            recognizer = sr.Recognizer()
+            with sr.AudioFile(wav_path) as source:
+                audio_data = recognizer.record(source)
+                text = recognizer.recognize_google(audio_data, language='en-US')  # English only
+                if not text.strip():
+                    return "No speech detected in audio file. Please ensure the audio contains clear speech."
+                return text
+                
+        finally:
+            # Clean up temporary files
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            if os.path.exists(wav_path):
+                os.unlink(wav_path)
+                
+    except sr.UnknownValueError:
+        return "ERROR: Could not understand audio. Please ensure the audio contains clear speech."
+    except sr.RequestError as e:
+        return f"ERROR: Speech recognition service error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Error processing audio: {e}")
+        return f"ERROR: Failed to process audio: {str(e)}"
+
+def call_ollama_api(text, mode="solve"):
     """
-    Call the local Ollama API to solve math problems using Gemma 3n model
-    This function requires a local Ollama instance running with Gemma 3n model
+    Call the local Ollama API with different modes:
+    - solve: Solve the math problem
+    - practice: Generate practice problems
     """
     try:
-        # Enhanced prompt optimized for Gemma 3n mathematical reasoning
-        enhanced_prompt = f"""You are a mathematics expert. Please solve this math problem step by step using LaTeX format.
+        if mode == "solve":
+            # Enhanced prompt for detailed step-by-step solutions
+            enhanced_prompt = f"""You are a professional mathematics teacher. Please solve this math problem step by step with the following requirements:
 
-Requirements:
-1. Use \\begin{{align}} and \\end{{align}} to wrap multi-line mathematical expressions
-2. Provide detailed reasoning for each step
-3. Format all mathematical symbols and formulas using LaTeX
-4. Provide the final answer clearly
+1. Use LaTeX format for all mathematical formulas
+2. Provide detailed step-by-step explanations with clear reasoning
+3. Use \\begin{{align}} and \\end{{align}} to wrap multi-line mathematical expressions
+4. Add clear explanations for each key step
+5. Provide a clear final answer
 
-Problem: {text}
+Math Problem: {text}
 
-Solution:"""
+Please begin solving:"""
+        else:  # practice mode
+            enhanced_prompt = f"""Based on this math problem, generate a comprehensive practice worksheet with the following requirements:
+
+1. Generate exactly 20 problems total:
+   - 10 multiple choice questions (A, B, C, D options with one correct answer)
+   - 5 true/false questions
+   - 5 calculation/solution problems
+
+2. Each problem should be clearly stated and solvable
+3. Use LaTeX format for mathematical formulas where appropriate
+4. Diversify problem types and difficulty levels
+5. For multiple choice questions, provide 4 options (A, B, C, D) with exactly one correct answer
+6. Format the response as follows:
+
+**Multiple Choice Questions (10):**
+1. [Question 1]
+   A) [Option A - incorrect]
+   B) [Option B - correct]
+   C) [Option C - incorrect]
+   D) [Option D - incorrect]
+
+2. [Question 2]
+   A) [Option A - correct]
+   B) [Option B - incorrect]
+   C) [Option C - incorrect]
+   D) [Option D - incorrect]
+...
+10. [Question 10]
+    A) [Option A - incorrect]
+    B) [Option B - incorrect]
+    C) [Option C - correct]
+    D) [Option D - incorrect]
+
+**True/False Questions (5):**
+11. [Question 11]
+12. [Question 12]
+13. [Question 13]
+14. [Question 14]
+15. [Question 15]
+
+**Calculation Problems (5):**
+16. [Question 16]
+17. [Question 17]
+18. [Question 18]
+19. [Question 19]
+20. [Question 20]
+
+**Answers:**
+1. [Correct answer: A/B/C/D]
+2. [Correct answer: A/B/C/D]
+...
+10. [Correct answer: A/B/C/D]
+11. [True/False]
+12. [True/False]
+13. [True/False]
+14. [True/False]
+15. [True/False]
+16. [Detailed solution for Problem 16]
+17. [Detailed solution for Problem 17]
+18. [Detailed solution for Problem 18]
+19. [Detailed solution for Problem 19]
+20. [Detailed solution for Problem 20]
+
+Original Problem: {text}
+
+Please generate 20 practice problems with answers:"""
         
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
@@ -61,12 +488,12 @@ Solution:"""
                 "prompt": enhanced_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.1,  # Lower temperature for consistent math solutions
+                    "temperature": 0.1 if mode == "solve" else 0.3,
                     "top_p": 0.9,
-                    "num_predict": 2048  # Allow longer responses for detailed solutions
+                    "num_predict": 2048
                 }
             },
-            timeout=60  # Increased timeout for complex math problems
+            timeout=300  # Increased timeout for complex problems
         )
         
         if response.status_code == 200:
@@ -95,18 +522,40 @@ Solution:"""
         logger.error(f"Ollama API error: {str(e)}")
         return {"success": False, "error": f"Ollama error: {str(e)}"}
 
-
-
 @app.route('/')
 def home():
     """Serve the main application page"""
     return render_template('index.html')
 
+@app.route('/debug')
+def debug():
+    """Serve the debug page"""
+    return send_from_directory('.', 'debug.html')
+
+@app.route('/test_frontend')
+def test_frontend():
+    """Serve the frontend test page"""
+    return send_from_directory('.', 'test_frontend.html')
+
+@app.route('/test_solution_format')
+def test_solution_format():
+    """Serve the solution format test page"""
+    return send_from_directory('.', 'test_solution_format.html')
+
+@app.route('/demo_steps')
+def demo_steps():
+    """Serve the steps format demo page"""
+    return send_from_directory('.', 'demo_steps.html')
+
+@app.route('/pdf_demo')
+def pdf_demo():
+    """Serve the PDF demo page"""
+    return send_from_directory('.', 'pdf_demo.html')
+
 @app.route('/solve_text', methods=['POST'])
 def solve_text():
     """
     Process text input for math problem solving
-    In a real implementation, this would integrate with a local LLM
     """
     try:
         text = request.form.get('text', '').strip()
@@ -120,7 +569,7 @@ def solve_text():
         logger.info(f"Processing text problem: {text[:100]}...")
         
         # Call local Ollama API with Gemma 3n model
-        ollama_result = call_ollama_api(text)
+        ollama_result = call_ollama_api(text, mode="solve")
         
         if ollama_result["success"]:
             logger.info("Successfully solved using local Ollama + Gemma 3n")
@@ -146,16 +595,75 @@ def solve_text():
             "error": f"Error processing math problem: {str(e)}"
         }), 500
 
+@app.route('/generate_practice', methods=['POST'])
+def generate_practice():
+    """
+    Generate practice problems based on the original problem
+    """
+    try:
+        text = request.form.get('text', '').strip()
+        
+        if not text:
+            return jsonify({
+                "success": False,
+                "error": "Please provide a math problem to generate practice questions"
+            }), 400
+        
+        logger.info(f"Generating practice problems for: {text[:100]}...")
+        
+        # Call local Ollama API for practice problems
+        ollama_result = call_ollama_api(text, mode="practice")
+        
+        if ollama_result["success"]:
+            logger.info("Successfully generated practice problems using local Ollama + Gemma 3n")
+            
+            # Parse the AI response to extract problems and solutions
+            multiple_choice, multiple_choice_options, true_false, calculation, answers = parse_practice_problems_and_solutions(ollama_result["latex"])
+            
+            # Generate PDF
+            pdf_filename = generate_practice_pdf(text, multiple_choice, multiple_choice_options, true_false, calculation, answers)
+            
+            if pdf_filename:
+                return jsonify({
+                    "success": True,
+                    "pdf_filename": pdf_filename,
+                    "original_text": text,
+                    "source": "ollama",
+                    "message": "Practice worksheet PDF generated successfully",
+                    "multiple_choice": multiple_choice,
+                    "true_false": true_false,
+                    "calculation": calculation,
+                    "answers": answers
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to generate PDF"
+                }), 500
+        else:
+            logger.error(f"Ollama failed: {ollama_result.get('error')}")
+            return jsonify({
+                "success": False,
+                "error": ollama_result.get('error', 'Local Ollama not available')
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error generating practice problems: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"Error generating practice problems: {str(e)}"
+        }), 500
+
 @app.route('/solve_image', methods=['POST'])
 def solve_image():
     """
-    Process uploaded image using OCR to extract text
+    Process uploaded image/video/audio using OCR or speech recognition
     """
     try:
         if 'file' not in request.files:
             return jsonify({
                 "success": False,
-                "error": "No image file provided"
+                "error": "No file provided"
             }), 400
         
         file = request.files['file']
@@ -163,53 +671,87 @@ def solve_image():
         if file.filename == '':
             return jsonify({
                 "success": False,
-                "error": "No image file selected"
+                "error": "No file selected"
             }), 400
         
         if not allowed_file(file.filename):
             return jsonify({
                 "success": False,
-                "error": "Please upload a valid image or video file (PNG, JPG, JPEG, GIF, BMP, MP4, MOV, AVI)"
+                "error": "Please upload a valid file (PNG, JPG, JPEG, GIF, BMP, MP4, MOV, AVI, WAV, MP3, M4A, OGG)"
             }), 400
         
-        logger.info(f"Processing image: {file.filename}")
+        logger.info(f"Processing file: {file.filename}")
         
-        # Read image data
-        image_data = file.read()
-        if len(image_data) == 0:
+        # Read file data
+        file_data = file.read()
+        if len(file_data) == 0:
             return jsonify({
                 "success": False,
-                "error": "Empty image file"
+                "error": "Empty file"
             }), 400
         
-        # Convert to PIL Image
-        try:
-            image = Image.open(io.BytesIO(image_data))
-            # Convert to RGB if necessary
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": "Invalid image format"
-            }), 400
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        extracted_text = ""
         
-        # Perform OCR
-        try:
-            extracted_text = pytesseract.image_to_string(image, lang='eng')
-            extracted_text = extracted_text.strip()
-        except Exception as e:
-            logger.error(f"OCR error: {str(e)}")
+        # Process based on file type
+        if file_extension in ['wav', 'mp3', 'm4a', 'ogg']:
+            # Audio file - speech recognition
+            file.seek(0)  # Reset file pointer
+            extracted_text = process_audio_file(file)
+            
+        elif file_extension in ['mp4', 'avi', 'mov', 'wmv', 'webm']:
+            # Video file - extract frames and OCR
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
+                temp_file.write(file_data)
+                temp_path = temp_file.name
+            
+            try:
+                extracted_text = extract_text_from_video(temp_path)
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                    
+        else:
+            # Image file - OCR
+            try:
+                # Check if tesseract is available
+                import subprocess
+                try:
+                    subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    return jsonify({
+                        "success": False,
+                        "error": "Tesseract OCR is not installed. Please install it to enable image text extraction, or use text input instead."
+                    }), 400
+                
+                image = Image.open(io.BytesIO(file_data))
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                
+                extracted_text = pytesseract.image_to_string(image, lang='eng')
+                extracted_text = extracted_text.strip()
+                
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid image format or OCR processing failed"
+                }), 400
+        
+        # Check if extracted_text contains error messages
+        if extracted_text.startswith("ERROR:"):
             return jsonify({
                 "success": False,
-                "error": "Failed to extract text from image"
-            }), 500
+                "error": extracted_text
+            }), 400
         
         if not extracted_text:
+            file_type = "image" if file_extension in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] else \
+                       "video" if file_extension in ['mp4', 'avi', 'mov', 'wmv', 'webm'] else "audio"
+            
             return jsonify({
                 "success": True,
                 "extracted_text": "",
-                "message": "No text could be extracted from the image. Please ensure the image contains clear, readable text."
+                "message": f"No text could be extracted from the {file_type}. Please ensure the {file_type} contains clear, readable text or speech."
             })
         
         logger.info(f"Extracted text: {extracted_text[:100]}...")
@@ -217,14 +759,14 @@ def solve_image():
         return jsonify({
             "success": True,
             "extracted_text": extracted_text,
-            "message": "Text successfully extracted from image"
+            "message": "Text successfully extracted from file"
         })
         
     except Exception as e:
-        logger.error(f"Unexpected error processing image: {str(e)}")
+        logger.error(f"Unexpected error processing file: {str(e)}")
         return jsonify({
             "success": False,
-            "error": "An unexpected error occurred while processing the image"
+            "error": "An unexpected error occurred while processing the file"
         }), 500
 
 @app.route('/test_ollama_connection', methods=['POST'])
@@ -238,16 +780,16 @@ def test_ollama_connection():
             models_data = response.json()
             models = [model.get('name', 'unknown') for model in models_data.get('models', [])]
             
-            if 'gemma:3n' in models:
+            if 'gemma3:4b' in models:
                 return jsonify({
                     "success": True,
-                    "message": "Local Ollama connected successfully, Gemma 3n model available",
+                    "message": "Local Ollama connected successfully, Gemma 3 4B model available",
                     "models": models
                 })
             else:
                 return jsonify({
                     "success": False,
-                    "error": f"Local Ollama connected but Gemma 3n model not found. Please run: ollama pull gemma:3n\nAvailable models: {', '.join(models) if models else 'None'}"
+                    "error": f"Local Ollama connected but Gemma 3 4B model not found. Please run: ollama pull gemma3:4b\nAvailable models: {', '.join(models) if models else 'None'}"
                 })
         else:
             return jsonify({
@@ -274,12 +816,21 @@ def test_ollama_connection():
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "service": "Solvely Lite"})
+    return jsonify({"status": "healthy", "service": "equalearn.ai."})
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
     """Serve static files"""
     return send_from_directory('static', filename)
 
+@app.route('/download_pdf/<filename>')
+def download_pdf(filename):
+    """Download generated PDF file"""
+    try:
+        return send_from_directory(PDF_OUTPUT_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error downloading PDF {filename}: {e}")
+        return jsonify({"error": "File not found"}), 404
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
