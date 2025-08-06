@@ -1,6 +1,6 @@
 # Overview
 
-Solvely Lite is an offline math problem solver application built with Flask and modern web technologies. The application provides two primary input methods: direct text input and image upload with OCR (Optical Character Recognition) capabilities. It processes mathematical problems and returns formatted solutions using LaTeX rendering via KaTeX. The system features optional integration with local Ollama + Gemma models for real math problem solving, with intelligent fallback to simulation when Ollama is unavailable. The system is designed to run completely offline without requiring external API calls or user authentication.
+Solvely Lite is a completely offline math problem solver application built with Flask and modern web technologies. The application provides two primary input methods: direct text input and image upload with OCR (Optical Character Recognition) capabilities. It processes mathematical problems using a mandatory local Ollama + Gemma 3n model installation and returns formatted solutions using LaTeX rendering via KaTeX. The system requires a local Ollama instance running with Gemma 3n model and operates entirely without network connectivity. No fallback mechanisms are provided - the system only functions with proper local AI setup.
 
 # User Preferences
 
@@ -45,12 +45,13 @@ The application operates entirely offline with no user authentication, session m
 - **Tesseract OCR**: System-level OCR engine that requires installation on the host system for image text extraction functionality
 
 ## Local AI Integration
-The application features complete integration with local Ollama + Gemma 3n models for authentic mathematical problem solving. Users can configure their local Ollama API URL (supporting both localhost and network addresses like http://192.168.0.100:11434). The system includes connection testing, intelligent error handling, and graceful fallback to simulation mode when the local AI is unavailable. The modular design allows for easy integration of additional mathematical computation libraries or AI models without significant architectural changes.
+The application features mandatory integration with local Ollama + Gemma 3n models for authentic mathematical problem solving. The system is hardcoded to use localhost:11434 API endpoint only, ensuring complete offline operation. The system includes connection testing and comprehensive error handling with setup guidance when the local AI is unavailable. No fallback mechanisms are provided - the application requires proper local Ollama installation with Gemma 3n model to function. The modular design allows for easy integration of additional mathematical computation libraries or AI models without significant architectural changes.
 
 ## Recent Changes (August 2025)
 - Migrated from FastAPI to Flask for better WSGI/Gunicorn compatibility
-- Implemented full Ollama + Gemma 3n integration with configurable API endpoints
-- Added connection testing and status monitoring for local AI services
-- Enhanced UI with solution source indicators and configuration panel
-- Added intelligent fallback system with clear user messaging
-- Improved Chinese language support for mathematical expressions
+- Implemented mandatory local-only Ollama + Gemma 3n integration (no network fallbacks)
+- Fixed API endpoints to localhost only (http://localhost:11434) for complete offline operation
+- Removed all simulation fallback mechanisms to ensure only authentic AI solutions
+- Enhanced error handling to guide users for proper local Ollama setup
+- Added Chinese language interface elements for local usage
+- Updated UI to reflect local-only operation requirements

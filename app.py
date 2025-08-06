@@ -26,9 +26,9 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Create upload directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Ollama API configuration
-OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
-OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'gemma:3n')
+# Ollama API configuration - Only local instance supported
+OLLAMA_API_URL = 'http://localhost:11434'  # Fixed to localhost only
+OLLAMA_MODEL = 'gemma:3n'  # Fixed to Gemma 3n model
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -36,15 +36,22 @@ def allowed_file(filename):
 
 def call_ollama_api(text):
     """
-    Call the local Ollama API to solve math problems using Gemma model
+    Call the local Ollama API to solve math problems using Gemma 3n model
+    This function requires a local Ollama instance running with Gemma 3n model
     """
     try:
-        # Enhanced prompt to ensure LaTeX output
-        enhanced_prompt = f"""请用LaTeX数学格式回答这道题并逐步推理。请将所有数学表达式用LaTeX格式包围，使用 \\begin{{align}} 和 \\end{{align}} 来包围多行数学表达式。
+        # Enhanced prompt optimized for Gemma 3n mathematical reasoning
+        enhanced_prompt = f"""你是一个数学专家，请用LaTeX格式详细解答这道数学题。
 
-问题：{text}
+要求：
+1. 使用 \\begin{{align}} 和 \\end{{align}} 包围多行数学表达式
+2. 每步都要详细说明推理过程
+3. 所有数学符号和公式都用LaTeX格式
+4. 提供最终答案
 
-请提供详细的解题步骤和最终答案，所有数学符号和公式都要用LaTeX格式。"""
+题目：{text}
+
+解答："""
         
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
@@ -53,77 +60,41 @@ def call_ollama_api(text):
                 "prompt": enhanced_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.1,  # Lower temperature for more consistent math output
-                    "top_p": 0.9
+                    "temperature": 0.1,  # Lower temperature for consistent math solutions
+                    "top_p": 0.9,
+                    "num_predict": 2048  # Allow longer responses for detailed solutions
                 }
             },
-            timeout=30  # 30 second timeout
+            timeout=60  # Increased timeout for complex math problems
         )
         
         if response.status_code == 200:
             result = response.json()
-            return {
-                "success": True,
-                "latex": result.get("response", ""),
-                "source": "ollama"
-            }
+            latex_response = result.get("response", "").strip()
+            
+            if latex_response:
+                return {
+                    "success": True,
+                    "latex": latex_response,
+                    "source": "ollama"
+                }
+            else:
+                return {"success": False, "error": "Ollama returned empty response"}
         else:
             logger.error(f"Ollama API error: {response.status_code}")
-            return {"success": False, "error": f"Ollama API returned status {response.status_code}"}
+            return {"success": False, "error": f"Ollama API error: {response.status_code}"}
             
     except requests.exceptions.Timeout:
         logger.error("Ollama API timeout")
-        return {"success": False, "error": "Ollama API timeout"}
+        return {"success": False, "error": "本地 Ollama 响应超时，请检查系统性能"}
     except requests.exceptions.ConnectionError:
         logger.error("Cannot connect to Ollama API")
-        return {"success": False, "error": "Cannot connect to local Ollama instance"}
+        return {"success": False, "error": "无法连接本地 Ollama，请确保 Ollama 正在运行并已加载 Gemma 3n 模型"}
     except Exception as e:
         logger.error(f"Ollama API error: {str(e)}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": f"Ollama 错误: {str(e)}"}
 
-def generate_fallback_solution(text):
-    """
-    Generate a fallback solution when Ollama is not available
-    """
-    # Simulate math problem solving with LaTeX output
-    if "derivative" in text.lower() or "differentiate" in text.lower() or "导数" in text:
-        latex_answer = r"""\begin{align}
-        \text{解题步骤（模拟解答）:} \\
-        \frac{d}{dx}[f(x)] &= \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} \\
-        \text{应用求导法则进行计算} \\
-        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
-        \end{align}"""
-    elif "integral" in text.lower() or "integrate" in text.lower() or "积分" in text:
-        latex_answer = r"""\begin{align}
-        \text{解题步骤（模拟解答）:} \\
-        \int f(x) \, dx &= F(x) + C \\
-        \text{其中 } F'(x) &= f(x) \\
-        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
-        \end{align}"""
-    elif "limit" in text.lower() or "极限" in text:
-        latex_answer = r"""\begin{align}
-        \text{解题步骤（模拟解答）:} \\
-        \lim_{x \to a} f(x) &= L \\
-        \text{应用极限定理和技巧} \\
-        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
-        \end{align}"""
-    else:
-        # Escape special characters in the input text for LaTeX
-        escaped_text = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
-        latex_answer = r"""\begin{align}
-        \text{问题分析（模拟解答）:} \\
-        \text{输入: } & \text{""" + escaped_text + r"""} \\
-        \text{解题方法: } & \text{识别数学概念} \\
-        & \text{应用相应方法} \\
-        & \text{验证结果} \\
-        \text{注意：这是模拟解答，请连接本地 Ollama 获取真实解答}
-        \end{align}"""
-    
-    return {
-        "success": True,
-        "latex": latex_answer,
-        "source": "fallback"
-    }
+
 
 @app.route('/')
 def home():
@@ -147,29 +118,25 @@ def solve_text():
         
         logger.info(f"Processing text problem: {text[:100]}...")
         
-        # Try to use Ollama API first
+        # Call local Ollama API with Gemma 3n model
         ollama_result = call_ollama_api(text)
         
         if ollama_result["success"]:
-            logger.info("Successfully solved using Ollama API")
+            logger.info("Successfully solved using local Ollama + Gemma 3n")
             return jsonify({
                 "success": True,
                 "latex": ollama_result["latex"],
                 "original_text": text,
                 "source": "ollama",
-                "message": "解答由本地 Ollama + Gemma 模型生成"
+                "message": "解答由本地设备上的 Ollama + Gemma 3n 模型生成"
             })
         else:
-            logger.warning(f"Ollama API failed: {ollama_result.get('error')}, using fallback")
-            fallback_result = generate_fallback_solution(text)
+            logger.error(f"Ollama failed: {ollama_result.get('error')}")
             return jsonify({
-                "success": True,
-                "latex": fallback_result["latex"],
-                "original_text": text,
-                "source": "fallback",
-                "message": f"使用模拟解答（Ollama 不可用: {ollama_result.get('error', '未知错误')}）",
-                "ollama_error": ollama_result.get('error')
-            })
+                "success": False,
+                "error": ollama_result.get('error', '本地 Ollama 不可用'),
+                "troubleshooting": "请确保：1) Ollama 已安装并运行 2) 已下载 Gemma 3n 模型 3) 运行命令: ollama pull gemma:3n"
+            }), 500
         
     except Exception as e:
         logger.error(f"Error processing text: {str(e)}")
@@ -261,13 +228,10 @@ def solve_image():
 
 @app.route('/test_ollama_connection', methods=['POST'])
 def test_ollama_connection():
-    """Test connection to Ollama API"""
+    """Test connection to local Ollama instance"""
     try:
-        data = request.get_json()
-        ollama_url = data.get('ollama_url', 'http://localhost:11434')
-        
-        # Test connection to Ollama
-        response = requests.get(f"{ollama_url}/api/tags", timeout=10)
+        # Only test localhost connection
+        response = requests.get(f"{OLLAMA_API_URL}/api/tags", timeout=10)
         
         if response.status_code == 200:
             models_data = response.json()
@@ -276,34 +240,34 @@ def test_ollama_connection():
             if 'gemma:3n' in models:
                 return jsonify({
                     "success": True,
-                    "message": "Connected successfully and Gemma 3n model is available",
+                    "message": "本地 Ollama 连接成功，Gemma 3n 模型可用",
                     "models": models
                 })
             else:
                 return jsonify({
                     "success": False,
-                    "error": f"Connected but Gemma 3n model not found. Available models: {', '.join(models) if models else 'None'}"
+                    "error": f"本地 Ollama 已连接但未找到 Gemma 3n 模型。请运行: ollama pull gemma:3n\n可用模型: {', '.join(models) if models else '无'}"
                 })
         else:
             return jsonify({
                 "success": False,
-                "error": f"Ollama API returned status {response.status_code}"
+                "error": f"本地 Ollama API 返回状态码 {response.status_code}"
             })
             
     except requests.exceptions.Timeout:
         return jsonify({
             "success": False,
-            "error": "Connection timeout - Ollama may not be running"
+            "error": "连接超时 - 请检查本地 Ollama 是否正在运行"
         })
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "Cannot connect to Ollama - check if it's running and accessible"
+            "error": "无法连接本地 Ollama - 请确保已安装并启动 Ollama 服务"
         })
     except Exception as e:
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": f"连接错误: {str(e)}"
         })
 
 @app.route('/health')

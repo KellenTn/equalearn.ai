@@ -132,13 +132,9 @@ textForm.addEventListener("submit", async (e) => {
                 sourceMessage.textContent = data.message;
                 solutionSource.style.display = "block";
                 
-                // Change alert class based on source
+                // Always show success for Ollama (no fallback mode)
                 const sourceInfo = document.getElementById("sourceInfo");
-                if (data.source === "ollama") {
-                    sourceInfo.className = "alert alert-success mb-2";
-                } else {
-                    sourceInfo.className = "alert alert-warning mb-2";
-                }
+                sourceInfo.className = "alert alert-success mb-2";
             }
             
             // Show LaTeX solution
@@ -263,13 +259,9 @@ solveExtractedBtn.addEventListener("click", async () => {
                 sourceMessage.textContent = data.message;
                 solutionSource.style.display = "block";
                 
-                // Change alert class based on source
+                // Always show success for Ollama (no fallback mode)
                 const sourceInfo = document.getElementById("sourceInfo");
-                if (data.source === "ollama") {
-                    sourceInfo.className = "alert alert-success mb-2";
-                } else {
-                    sourceInfo.className = "alert alert-warning mb-2";
-                }
+                sourceInfo.className = "alert alert-success mb-2";
             }
             
             // Show LaTeX solution
@@ -289,9 +281,8 @@ solveExtractedBtn.addEventListener("click", async () => {
     }
 });
 
-// Test Ollama connection
+// Test local Ollama connection
 testConnectionBtn.addEventListener("click", async () => {
-    const ollamaUrl = document.getElementById("ollamaUrl").value || "http://localhost:11434";
     const connectionStatus = document.getElementById("connectionStatus");
     
     setButtonLoading(testConnectionBtn, true);
@@ -302,22 +293,22 @@ testConnectionBtn.addEventListener("click", async () => {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ ollama_url: ollamaUrl })
+            body: JSON.stringify({})
         });
         
         const data = await response.json();
         
         if (data.success) {
-            connectionStatus.innerHTML = '<span class="text-success"><i data-feather="check-circle"></i> 连接成功</span>';
+            connectionStatus.innerHTML = '<span class="text-success"><i data-feather="check-circle"></i> 本地服务正常运行</span>';
         } else {
-            connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 连接失败: ${data.error}</span>`;
+            connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> ${data.error}</span>`;
         }
         
         // Re-render feather icons
         feather.replace();
         
     } catch (error) {
-        connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 连接错误: ${error.message}</span>`;
+        connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 检查失败: ${error.message}</span>`;
         feather.replace();
     } finally {
         setButtonLoading(testConnectionBtn, false);

@@ -220,8 +220,8 @@
                                 <div class="d-flex align-items-start">
                                     <i data-feather="cpu" class="me-3 mt-1 text-primary"></i>
                                     <div>
-                                        <h6>Local AI Integration</h6>
-                                        <small class="text-muted">Connect to Ollama + Gemma for real solutions</small>
+                                        <h6>本地 AI 运算</h6>
+                                        <small class="text-muted">使用本地 Ollama + Gemma 3n 模型</small>
                                     </div>
                                 </div>
                             </div>
@@ -238,19 +238,27 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="settings" class="me-2"></i>
-                            Ollama Configuration
+                            本地 Ollama 配置
                         </h5>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-info mb-3">
+                            <i data-feather="info" class="me-2"></i>
+                            <strong>本地运行要求：</strong>此应用完全在本地设备运行，不使用任何网络连接。需要在本机安装 Ollama 和 Gemma 3n 模型。
+                        </div>
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="mb-3">
-                                    <label for="ollamaUrl" class="form-label">Ollama API URL</label>
-                                    <input type="text" class="form-control" id="ollamaUrl" 
-                                           placeholder="http://localhost:11434 或 http://192.168.0.100:11434"
-                                           value="http://localhost:11434">
+                                    <label class="form-label">本地 Ollama 设置</label>
+                                    <div class="form-control-plaintext">
+                                        <strong>API 地址:</strong> http://localhost:11434<br>
+                                        <strong>模型:</strong> Gemma 3n
+                                    </div>
                                     <div class="form-text">
-                                        设置本地 Ollama API 地址。确保已安装并运行 Gemma 模型：<code>ollama pull gemma:3n</code>
+                                        <strong>安装步骤：</strong><br>
+                                        1. 下载并安装 Ollama: <code>curl -fsSL https://ollama.ai/install.sh | sh</code><br>
+                                        2. 下载 Gemma 3n 模型: <code>ollama pull gemma:3n</code><br>
+                                        3. 启动 Ollama 服务: <code>ollama serve</code>
                                     </div>
                                 </div>
                             </div>
@@ -259,8 +267,8 @@
                                     <label class="form-label">连接状态</label>
                                     <div>
                                         <button class="btn btn-outline-primary btn-sm" id="testConnectionBtn">
-                                            <i data-feather="wifi" class="me-1"></i>
-                                            测试连接
+                                            <i data-feather="server" class="me-1"></i>
+                                            检查本地服务
                                         </button>
                                         <div id="connectionStatus" class="mt-2"></div>
                                     </div>
