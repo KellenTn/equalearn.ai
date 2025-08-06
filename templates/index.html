@@ -22,11 +22,17 @@
         <!-- Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="d-flex align-items-center mb-3">
-                    <i data-feather="book-open" class="me-3" style="width: 2rem; height: 2rem;"></i>
-                    <h1 class="mb-0">Solvely Lite</h1>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="book-open" class="me-3" style="width: 2rem; height: 2rem;"></i>
+                        <h1 class="mb-0">Solvely Lite</h1>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="translateBtn">
+                        <i data-feather="globe" class="me-1"></i>
+                        <span id="translateText">中文</span>
+                    </button>
                 </div>
-                <p class="text-muted">Offline math problem solver with OCR capabilities</p>
+                <p class="text-muted" data-en="Offline math problem solver with OCR capabilities" data-zh="支持OCR的离线数学问题求解器">Offline math problem solver with OCR capabilities</p>
             </div>
         </div>
 
@@ -38,24 +44,26 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="edit-3" class="me-2"></i>
-                            Text Input
+                            <span data-en="Text Input" data-zh="文本输入">Text Input</span>
                         </h5>
                     </div>
                     <div class="card-body">
                         <form id="textForm">
                             <div class="mb-3">
-                                <label for="mathInput" class="form-label">Enter your math problem:</label>
+                                <label for="mathInput" class="form-label" data-en="Enter your math problem:" data-zh="输入数学问题：">Enter your math problem:</label>
                                 <textarea 
                                     class="form-control" 
                                     id="mathInput" 
                                     name="text" 
                                     rows="4" 
+                                    data-placeholder-en="Example: Find the derivative of x^2 + 3x + 1"
+                                    data-placeholder-zh="例如：求 x^2 + 3x + 1 的导数"
                                     placeholder="Example: Find the derivative of x^2 + 3x + 1"
                                     required></textarea>
                             </div>
                             <button type="submit" class="btn btn-primary" id="solveTextBtn">
                                 <i data-feather="arrow-right" class="me-1"></i>
-                                Solve Problem
+                                <span data-en="Solve Problem" data-zh="求解问题">Solve Problem</span>
                             </button>
                         </form>
                     </div>
@@ -68,13 +76,13 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="camera" class="me-2"></i>
-                            Image Upload
+                            <span data-en="Image Upload" data-zh="图片上传">Image Upload</span>
                         </h5>
                     </div>
                     <div class="card-body">
                         <form id="imageForm" enctype="multipart/form-data">
                             <div class="mb-3">
-                                <label for="imageInput" class="form-label">Upload an image of your math problem:</label>
+                                <label for="imageInput" class="form-label" data-en="Upload an image of your math problem:" data-zh="上传数学问题图片：">Upload an image of your math problem:</label>
                                 <input 
                                     type="file" 
                                     class="form-control" 
@@ -82,11 +90,11 @@
                                     name="file" 
                                     accept="image/*"
                                     required>
-                                <div class="form-text">Supported formats: JPG, PNG, GIF, BMP</div>
+                                <div class="form-text" data-en="Supported formats: JPG, PNG, GIF, BMP" data-zh="支持格式：JPG, PNG, GIF, BMP">Supported formats: JPG, PNG, GIF, BMP</div>
                             </div>
                             <button type="submit" class="btn btn-secondary" id="extractTextBtn">
                                 <i data-feather="eye" class="me-1"></i>
-                                Extract Text
+                                <span data-en="Extract Text" data-zh="提取文本">Extract Text</span>
                             </button>
                         </form>
                         
@@ -106,7 +114,7 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="check-circle" class="me-2"></i>
-                            Solution
+                            <span data-en="Solution" data-zh="解答">Solution</span>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -130,7 +138,7 @@
                         <div id="successState" style="display: none;">
                             <!-- Original problem -->
                             <div id="originalProblem" class="mb-3" style="display: none;">
-                                <h6>Original Problem:</h6>
+                                <h6 data-en="Original Problem:" data-zh="原始问题：">Original Problem:</h6>
                                 <div class="bg-secondary bg-opacity-25 p-3 rounded">
                                     <span id="problemText"></span>
                                 </div>
@@ -138,13 +146,13 @@
 
                             <!-- Extracted text from image -->
                             <div id="extractedText" class="mb-3" style="display: none;">
-                                <h6>Extracted Text:</h6>
+                                <h6 data-en="Extracted Text:" data-zh="提取的文本：">Extracted Text:</h6>
                                 <div class="bg-secondary bg-opacity-25 p-3 rounded">
                                     <span id="extractedContent"></span>
                                 </div>
                                 <button class="btn btn-sm btn-outline-primary mt-2" id="solveExtractedBtn">
                                     <i data-feather="arrow-right" class="me-1"></i>
-                                    Solve This Problem
+                                    <span data-en="Solve This Problem" data-zh="求解此问题">Solve This Problem</span>
                                 </button>
                             </div>
 
@@ -158,7 +166,7 @@
 
                             <!-- LaTeX solution -->
                             <div id="latexSolution" style="display: none;">
-                                <h6>Solution:</h6>
+                                <h6 data-en="Solution:" data-zh="解答：">Solution:</h6>
                                 <div class="bg-dark bg-opacity-25 p-4 rounded" id="mathOutput">
                                     <!-- KaTeX rendered content will appear here -->
                                 </div>
@@ -169,7 +177,7 @@
                         <div id="emptyState">
                             <div class="text-center text-muted py-4">
                                 <i data-feather="help-circle" style="width: 3rem; height: 3rem;" class="mb-3"></i>
-                                <p>Enter a math problem above or upload an image to get started.</p>
+                                <p data-en="Enter a math problem above or upload an image to get started." data-zh="请在上方输入数学问题或上传图片开始使用。">Enter a math problem above or upload an image to get started.</p>
                             </div>
                         </div>
                     </div>
@@ -184,7 +192,7 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="star" class="me-2"></i>
-                            Features
+                            <span data-en="Features" data-zh="功能特点">Features</span>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -193,8 +201,8 @@
                                 <div class="d-flex align-items-start">
                                     <i data-feather="wifi-off" class="me-3 mt-1 text-success"></i>
                                     <div>
-                                        <h6>Completely Offline</h6>
-                                        <small class="text-muted">No internet connection required</small>
+                                        <h6 data-en="Completely Offline" data-zh="完全离线">Completely Offline</h6>
+                                        <small class="text-muted" data-en="No internet connection required" data-zh="无需网络连接">No internet connection required</small>
                                     </div>
                                 </div>
                             </div>
@@ -202,8 +210,8 @@
                                 <div class="d-flex align-items-start">
                                     <i data-feather="image" class="me-3 mt-1 text-info"></i>
                                     <div>
-                                        <h6>OCR Support</h6>
-                                        <small class="text-muted">Extract text from images automatically</small>
+                                        <h6 data-en="OCR Support" data-zh="OCR 支持">OCR Support</h6>
+                                        <small class="text-muted" data-en="Extract text from images automatically" data-zh="自动从图片提取文本">Extract text from images automatically</small>
                                     </div>
                                 </div>
                             </div>
@@ -211,8 +219,8 @@
                                 <div class="d-flex align-items-start">
                                     <i data-feather="type" class="me-3 mt-1 text-warning"></i>
                                     <div>
-                                        <h6>LaTeX Rendering</h6>
-                                        <small class="text-muted">Beautiful mathematical notation</small>
+                                        <h6 data-en="LaTeX Rendering" data-zh="LaTeX 渲染">LaTeX Rendering</h6>
+                                        <small class="text-muted" data-en="Beautiful mathematical notation" data-zh="优美的数学公式显示">Beautiful mathematical notation</small>
                                     </div>
                                 </div>
                             </div>
@@ -220,8 +228,8 @@
                                 <div class="d-flex align-items-start">
                                     <i data-feather="cpu" class="me-3 mt-1 text-primary"></i>
                                     <div>
-                                        <h6>本地 AI 运算</h6>
-                                        <small class="text-muted">使用本地 Ollama + Gemma 3n 模型</small>
+                                        <h6 data-en="Local AI Computing" data-zh="本地 AI 运算">Local AI Computing</h6>
+                                        <small class="text-muted" data-en="Using local Ollama + Gemma 3n model" data-zh="使用本地 Ollama + Gemma 3n 模型">Using local Ollama + Gemma 3n model</small>
                                     </div>
                                 </div>
                             </div>
@@ -238,37 +246,38 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i data-feather="settings" class="me-2"></i>
-                            本地 Ollama 配置
+                            <span data-en="Local Ollama Configuration" data-zh="本地 Ollama 配置">Local Ollama Configuration</span>
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info mb-3">
                             <i data-feather="info" class="me-2"></i>
-                            <strong>本地运行要求：</strong>此应用完全在本地设备运行，不使用任何网络连接。需要在本机安装 Ollama 和 Gemma 3n 模型。
+                            <strong data-en="Local Operation Requirements:" data-zh="本地运行要求：">Local Operation Requirements:</strong>
+                            <span data-en="This application runs completely locally without any network connections. Requires local Ollama and Gemma 3n model installation." data-zh="此应用完全在本地设备运行，不使用任何网络连接。需要在本机安装 Ollama 和 Gemma 3n 模型。">This application runs completely locally without any network connections. Requires local Ollama and Gemma 3n model installation.</span>
                         </div>
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="mb-3">
-                                    <label class="form-label">本地 Ollama 设置</label>
+                                    <label class="form-label" data-en="Local Ollama Settings" data-zh="本地 Ollama 设置">Local Ollama Settings</label>
                                     <div class="form-control-plaintext">
-                                        <strong>API 地址:</strong> http://localhost:11434<br>
-                                        <strong>模型:</strong> Gemma 3n
+                                        <strong data-en="API Address:" data-zh="API 地址:">API Address:</strong> http://localhost:11434<br>
+                                        <strong data-en="Model:" data-zh="模型:">Model:</strong> Gemma 3n
                                     </div>
                                     <div class="form-text">
-                                        <strong>安装步骤：</strong><br>
-                                        1. 下载并安装 Ollama: <code>curl -fsSL https://ollama.ai/install.sh | sh</code><br>
-                                        2. 下载 Gemma 3n 模型: <code>ollama pull gemma:3n</code><br>
-                                        3. 启动 Ollama 服务: <code>ollama serve</code>
+                                        <strong data-en="Installation Steps:" data-zh="安装步骤：">Installation Steps:</strong><br>
+                                        <span data-en="1. Download and install Ollama:" data-zh="1. 下载并安装 Ollama:">1. Download and install Ollama:</span> <code>curl -fsSL https://ollama.ai/install.sh | sh</code><br>
+                                        <span data-en="2. Download Gemma 3n model:" data-zh="2. 下载 Gemma 3n 模型:">2. Download Gemma 3n model:</span> <code>ollama pull gemma:3n</code><br>
+                                        <span data-en="3. Start Ollama service:" data-zh="3. 启动 Ollama 服务:">3. Start Ollama service:</span> <code>ollama serve</code>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label class="form-label">连接状态</label>
+                                    <label class="form-label" data-en="Connection Status" data-zh="连接状态">Connection Status</label>
                                     <div>
                                         <button class="btn btn-outline-primary btn-sm" id="testConnectionBtn">
                                             <i data-feather="server" class="me-1"></i>
-                                            检查本地服务
+                                            <span data-en="Check Local Service" data-zh="检查本地服务">Check Local Service</span>
                                         </button>
                                         <div id="connectionStatus" class="mt-2"></div>
                                     </div>

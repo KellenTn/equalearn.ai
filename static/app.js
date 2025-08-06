@@ -281,6 +281,46 @@ solveExtractedBtn.addEventListener("click", async () => {
     }
 });
 
+// Translation functionality
+let currentLanguage = 'en';
+
+function translatePage(targetLang) {
+    currentLanguage = targetLang;
+    
+    // Update all elements with translation data attributes
+    const elements = document.querySelectorAll('[data-en], [data-zh]');
+    elements.forEach(element => {
+        if (element.hasAttribute(`data-${targetLang}`)) {
+            element.textContent = element.getAttribute(`data-${targetLang}`);
+        }
+    });
+    
+    // Update placeholders
+    const placeholderElements = document.querySelectorAll('[data-placeholder-en], [data-placeholder-zh]');
+    placeholderElements.forEach(element => {
+        if (element.hasAttribute(`data-placeholder-${targetLang}`)) {
+            element.placeholder = element.getAttribute(`data-placeholder-${targetLang}`);
+        }
+    });
+    
+    // Update translate button text
+    const translateText = document.getElementById('translateText');
+    translateText.textContent = targetLang === 'en' ? '中文' : 'English';
+    
+    // Save language preference
+    localStorage.setItem('preferredLanguage', targetLang);
+    
+    // Re-render feather icons
+    feather.replace();
+}
+
+// Translation button event listener
+const translateBtn = document.getElementById('translateBtn');
+translateBtn.addEventListener('click', () => {
+    const newLang = currentLanguage === 'en' ? 'zh' : 'en';
+    translatePage(newLang);
+});
+
 // Test local Ollama connection
 testConnectionBtn.addEventListener("click", async () => {
     const connectionStatus = document.getElementById("connectionStatus");
@@ -299,7 +339,8 @@ testConnectionBtn.addEventListener("click", async () => {
         const data = await response.json();
         
         if (data.success) {
-            connectionStatus.innerHTML = '<span class="text-success"><i data-feather="check-circle"></i> 本地服务正常运行</span>';
+            const successMsg = currentLanguage === 'en' ? 'Local service running normally' : '本地服务正常运行';
+            connectionStatus.innerHTML = `<span class="text-success"><i data-feather="check-circle"></i> ${successMsg}</span>`;
         } else {
             connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> ${data.error}</span>`;
         }
@@ -308,7 +349,8 @@ testConnectionBtn.addEventListener("click", async () => {
         feather.replace();
         
     } catch (error) {
-        connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> 检查失败: ${error.message}</span>`;
+        const errorMsg = currentLanguage === 'en' ? `Check failed: ${error.message}` : `检查失败: ${error.message}`;
+        connectionStatus.innerHTML = `<span class="text-danger"><i data-feather="x-circle"></i> ${errorMsg}</span>`;
         feather.replace();
     } finally {
         setButtonLoading(testConnectionBtn, false);
@@ -318,6 +360,12 @@ testConnectionBtn.addEventListener("click", async () => {
 // Initialize the page
 document.addEventListener("DOMContentLoaded", () => {
     showState(emptyState);
+    
+    // Load saved language preference
+    const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
+    if (savedLanguage !== 'en') {
+        translatePage(savedLanguage);
+    }
     
     // Configure KaTeX auto-render
     if (typeof renderMathInElement !== 'undefined') {
