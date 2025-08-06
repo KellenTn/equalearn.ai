@@ -75,32 +75,69 @@
                 <div class="card h-100">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i data-feather="camera" class="me-2"></i>
-                            <span data-en="Image Upload" data-zh="图片上传">Image Upload</span>
+                            <i data-feather="upload" class="me-2"></i>
+                            <span data-en="Media Upload" data-zh="媒体上传">Media Upload</span>
                         </h5>
                     </div>
                     <div class="card-body">
                         <form id="imageForm" enctype="multipart/form-data">
                             <div class="mb-3">
-                                <label for="imageInput" class="form-label" data-en="Upload an image of your math problem:" data-zh="上传数学问题图片：">Upload an image of your math problem:</label>
-                                <input 
-                                    type="file" 
-                                    class="form-control" 
-                                    id="imageInput" 
-                                    name="file" 
-                                    accept="image/*"
-                                    required>
-                                <div class="form-text" data-en="Supported formats: JPG, PNG, GIF, BMP" data-zh="支持格式：JPG, PNG, GIF, BMP">Supported formats: JPG, PNG, GIF, BMP</div>
+                                <label for="imageInput" class="form-label" data-en="Upload an image or video of your math problem:" data-zh="上传数学问题图片或视频：">Upload an image or video of your math problem:</label>
+                                
+                                <!-- Drag and Drop Zone -->
+                                <div class="drag-drop-zone border border-2 border-dashed rounded p-4 text-center" id="dragDropZone">
+                                    <div class="drag-drop-content">
+                                        <i data-feather="upload-cloud" class="mb-2" style="width: 3rem; height: 3rem;"></i>
+                                        <p class="mb-2" data-en="Drag & drop files here, or click to browse" data-zh="拖拽文件到此处，或点击浏览">Drag & drop files here, or click to browse</p>
+                                        <input 
+                                            type="file" 
+                                            class="form-control d-none" 
+                                            id="imageInput" 
+                                            name="file" 
+                                            accept="image/*,video/*"
+                                            required>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="browseBtn">
+                                            <i data-feather="folder" class="me-1"></i>
+                                            <span data-en="Choose Files" data-zh="选择文件">Choose Files</span>
+                                        </button>
+                                    </div>
+                                    <div class="drag-drop-overlay" style="display: none;">
+                                        <div class="text-primary">
+                                            <i data-feather="download" style="width: 2rem; height: 2rem;"></i>
+                                            <p data-en="Drop files here" data-zh="释放文件">Drop files here</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-text mt-2" data-en="Supported formats: JPG, PNG, GIF, BMP, MP4, MOV, AVI" data-zh="支持格式：JPG, PNG, GIF, BMP, MP4, MOV, AVI">Supported formats: JPG, PNG, GIF, BMP, MP4, MOV, AVI</div>
                             </div>
+                            
+                            <!-- Selected file info -->
+                            <div id="selectedFileInfo" class="mb-3" style="display: none;">
+                                <div class="alert alert-info d-flex align-items-center">
+                                    <i data-feather="file" class="me-2"></i>
+                                    <div>
+                                        <strong id="fileName"></strong>
+                                        <small class="d-block text-muted" id="fileSize"></small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="removeFileBtn">
+                                        <i data-feather="x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
                             <button type="submit" class="btn btn-secondary" id="extractTextBtn">
                                 <i data-feather="eye" class="me-1"></i>
                                 <span data-en="Extract Text" data-zh="提取文本">Extract Text</span>
                             </button>
                         </form>
                         
-                        <!-- Image Preview -->
-                        <div id="imagePreview" class="mt-3" style="display: none;">
-                            <img id="previewImg" class="img-fluid rounded" style="max-height: 200px;">
+                        <!-- Media Preview -->
+                        <div id="mediaPreview" class="mt-3" style="display: none;">
+                            <img id="previewImg" class="img-fluid rounded" style="max-height: 200px; display: none;">
+                            <video id="previewVideo" class="img-fluid rounded" style="max-height: 200px; display: none;" controls>
+                                Your browser does not support the video tag.
+                            </video>
                         </div>
                     </div>
                 </div>

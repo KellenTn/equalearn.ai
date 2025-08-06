@@ -120,3 +120,55 @@
 #emptyState .text-muted {
     color: var(--bs-secondary) !important;
 }
+
+/* Drag and Drop Zone Styles */
+.drag-drop-zone {
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-drop-zone:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: var(--bs-primary-bg-subtle);
+}
+
+.drag-drop-zone.drag-over {
+    border-color: var(--bs-primary) !important;
+    background-color: var(--bs-primary-bg-subtle);
+    transform: scale(1.02);
+}
+
+.drag-drop-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bs-primary-bg-subtle);
+    border: 2px dashed var(--bs-primary);
+    border-radius: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.drag-drop-content {
+    text-align: center;
+}
+
+/* File info styling */
+#selectedFileInfo .alert {
+    margin-bottom: 0;
+}
+
+/* Media preview improvements */
+#mediaPreview img,
+#mediaPreview video {
+    border: 1px solid var(--bs-border-color);
+}

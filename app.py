@@ -17,7 +17,7 @@ app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'webm'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -31,6 +31,7 @@ OLLAMA_API_URL = 'http://localhost:11434'  # Fixed to localhost only
 OLLAMA_MODEL = 'gemma:3n'  # Fixed to Gemma 3n model
 
 def allowed_file(filename):
+    """Check if file extension is allowed"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -168,7 +169,7 @@ def solve_image():
         if not allowed_file(file.filename):
             return jsonify({
                 "success": False,
-                "error": "Please upload a valid image file (PNG, JPG, JPEG, GIF, BMP)"
+                "error": "Please upload a valid image or video file (PNG, JPG, JPEG, GIF, BMP, MP4, MOV, AVI)"
             }), 400
         
         logger.info(f"Processing image: {file.filename}")

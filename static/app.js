@@ -161,13 +161,19 @@ imageForm.addEventListener("submit", async (e) => {
     const file = formData.get('file');
     
     if (!file || file.size === 0) {
-        showError("Please select an image file.");
+        const errorMsg = currentLanguage === 'en' ? 
+            'Please select an image or video file.' : 
+            '请选择图片或视频文件。';
+        showError(errorMsg);
         return;
     }
     
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-        showError("Image file is too large. Please select a file smaller than 10MB.");
+        const errorMsg = currentLanguage === 'en' ? 
+            'File is too large. Please select a file smaller than 10MB.' : 
+            '文件过大。请选择小于10MB的文件。';
+        showError(errorMsg);
         return;
     }
     
@@ -212,18 +218,154 @@ imageForm.addEventListener("submit", async (e) => {
     }
 });
 
-// Handle image preview
-imageInput.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (file) {
+// Drag and Drop functionality
+const dragDropZone = document.getElementById("dragDropZone");
+const dragDropOverlay = dragDropZone.querySelector(".drag-drop-overlay");
+const browseBtn = document.getElementById("browseBtn");
+const selectedFileInfo = document.getElementById("selectedFileInfo");
+const fileName = document.getElementById("fileName");
+const fileSize = document.getElementById("fileSize");
+const removeFileBtn = document.getElementById("removeFileBtn");
+const mediaPreview = document.getElementById("mediaPreview");
+const previewVideo = document.getElementById("previewVideo");
+
+// File size formatter
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// File type checker
+function isValidFile(file) {
+    const validTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/webp',
+        'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'
+    ];
+    return validTypes.includes(file.type);
+}
+
+// Display selected file
+function displaySelectedFile(file) {
+    if (!isValidFile(file)) {
+        const errorMsg = currentLanguage === 'en' ? 
+            'Please select a valid image or video file' : 
+            '请选择有效的图片或视频文件';
+        alert(errorMsg);
+        return false;
+    }
+    
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    selectedFileInfo.style.display = 'block';
+    
+    // Show preview
+    if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
             previewImg.src = e.target.result;
-            imagePreview.style.display = "block";
+            previewImg.style.display = 'block';
+            previewVideo.style.display = 'none';
+            mediaPreview.style.display = 'block';
         };
         reader.readAsDataURL(file);
-    } else {
-        imagePreview.style.display = "none";
+    } else if (file.type.startsWith('video/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewVideo.src = e.target.result;
+            previewVideo.style.display = 'block';
+            previewImg.style.display = 'none';
+            mediaPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    return true;
+}
+
+// Remove selected file
+function removeSelectedFile() {
+    imageInput.value = '';
+    selectedFileInfo.style.display = 'none';
+    mediaPreview.style.display = 'none';
+    previewImg.src = '';
+    previewVideo.src = '';
+}
+
+// Browse button click
+browseBtn.addEventListener('click', () => {
+    imageInput.click();
+});
+
+// Drag drop zone click
+dragDropZone.addEventListener('click', (e) => {
+    if (e.target === dragDropZone || e.target.closest('.drag-drop-content')) {
+        imageInput.click();
+    }
+});
+
+// Remove file button
+removeFileBtn.addEventListener('click', removeSelectedFile);
+
+// File input change
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        displaySelectedFile(file);
+    }
+});
+
+// Drag and drop events
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dragDropZone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+// Highlight drop area
+['dragenter', 'dragover'].forEach(eventName => {
+    dragDropZone.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dragDropZone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight() {
+    dragDropZone.classList.add('drag-over');
+    dragDropOverlay.style.display = 'flex';
+}
+
+function unhighlight() {
+    dragDropZone.classList.remove('drag-over');
+    dragDropOverlay.style.display = 'none';
+}
+
+// Handle dropped files
+dragDropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+        const file = files[0];
+        imageInput.files = files;
+        displaySelectedFile(file);
+    }
+}
+
+// Handle image preview (updated for media files)
+imageInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        displaySelectedFile(file);
     }
 });
 
