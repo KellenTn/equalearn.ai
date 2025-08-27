@@ -1,4 +1,4 @@
-# equalearn.ai. - Local AI Math Tutor
+# equalearn.ai. - Local AI Tutor Aiming to remove the learning inequality for the whole human society 
 
 An AI tutor dedicated to eliminating inequality and achieving equal educational resources, using local Ollama + Gemma 3n model.
 
